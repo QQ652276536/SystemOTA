@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.os.RecoverySystem;
 import android.os.SystemProperties;
@@ -42,15 +43,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private static final String TAG = "MainActivity";
-    private static final String UPDATE_URL = "http://192.168.43.164:8080/GPRS_Web/Download/OTATest";
-    private static final String TXT_URL = "http://192.168.43.164:8080/GPRS_Web/Download/TxtTest";
+    private static final String UPDATE_URL = "http://129.204.165.206:8080/GPRS_Web/Download/OTATest";
+    private static final String TXT_URL = "http://129.204.165.206:8080/GPRS_Web/Download/TxtTest";
+    //    private static final String UPDATE_URL = "http://192.168.43.164:8080/GPRS_Web/Download/OTATest";
+    //    private static final String TXT_URL = "http://192.168.43.164:8080/GPRS_Web/Download/TxtTest";
     private static final String UPDATE_PATH = "/data/update.zip";
     private static final String TXT_PATH = "/data/update_info.txt";
 
     private TextView _txt1;
-    private Button _btn1;
-    private ProgressBar _pb;
+    private Button _btn1, _btn2;
     private PowerManager.WakeLock _wakeLock;
+    private File localTxtFile, localUpdateFile;
 
     public int GetVersion(Context context) {
         return Share(context).getInt("Version", 111);
@@ -77,33 +80,57 @@ public class MainActivity extends AppCompatActivity {
             httpURLConnection.setRequestProperty("Charset", "UTF-8");
             //打开到此 URL 引用的资源的通信链接（如果尚未建立这样的连接）。
             httpURLConnection.connect();
-            if (httpURLConnection.getResponseCode() == 200) {
-                InputStream inputStream = httpURLConnection.getInputStream();
-                file = new File(localPath);
-                if (!file.getParentFile().exists()) {
-                    file.getParentFile().mkdirs();
+            httpURLConnection.getResponseCode();
+            InputStream inputStream = httpURLConnection.getInputStream();
+            file = new File(localPath);
+            if (!file.getParentFile().exists()) {
+                file.getParentFile().mkdirs();
+            }
+            if (inputStream != null) {
+                FileOutputStream fileOutputStream = new FileOutputStream(localPath);
+                byte[] buf = new byte[1024];
+                int ch;
+                while ((ch = inputStream.read(buf)) != -1) {
+                    //将获取到的流写入文件中
+                    fileOutputStream.write(buf, 0, ch);
                 }
-                if (inputStream != null) {
-                    FileOutputStream fileOutputStream = new FileOutputStream(localPath);
-                    byte[] buf = new byte[1024];
-                    int ch;
-                    while ((ch = inputStream.read(buf)) != -1) {
-                        //将获取到的流写入文件中
-                        fileOutputStream.write(buf, 0, ch);
-                    }
-                    if (fileOutputStream != null) {
-                        fileOutputStream.flush();
-                        fileOutputStream.close();
-                    }
-                    httpURLConnection.disconnect();
+                if (fileOutputStream != null) {
+                    fileOutputStream.flush();
+                    fileOutputStream.close();
                 }
+                httpURLConnection.disconnect();
             }
         } catch (Exception e) {
             e.printStackTrace();
             ShowInfo(_txt1, e.getMessage());
             file = null;
+            DismissWaitWindow();
         }
         return file;
+    }
+
+    public String ReadFileByLines(File file) {
+        String result = "";
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader(file));
+            String tempString = null;
+            while ((tempString = reader.readLine()) != null) {
+                result += tempString;
+            }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return result;
     }
 
     public String ReadFileByLines(String path) {
@@ -160,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
         _txt1 = findViewById(R.id.txt1);
         _txt1.setMovementMethod(ScrollingMovementMethod.getInstance());
         _btn1 = findViewById(R.id.btn1);
-        _pb = findViewById(R.id.progressBar);
+        _btn2 = findViewById(R.id.btn2);
         String sta = SystemProperties.get("ro.crypto.state");
         Log.d(TAG, "ro.crypto.state" + sta);
         if ("encrypted".equals(sta)) {
@@ -169,14 +196,39 @@ public class MainActivity extends AppCompatActivity {
         SystemProperties.get("ro.build.date.utc");
     }
 
-    public void Update(View v) {
-        if (_btn1.getText().toString().equals("获取更新")) {
+    private void ShowWaitWindow() {
+        ProgressDialogUtil.ShowProgressDialog(MainActivity.this, false, "正在下载...");
+    }
+
+    private void DismissWaitWindow() {
+        ProgressDialogUtil.Dismiss();
+    }
+
+    private File GetFilePathSite(String filePath, String fileName) {
+        File file = new File(filePath);
+        File[] fileList = file.listFiles();
+        for (int i = 0; i < fileList.length; i++) {
+            if (fileList[i].isDirectory()) {
+                String result = fileList[i].getPath();
+                File tempFile = new File(result + "/" + fileName);
+                if (tempFile.exists()) {
+                    return tempFile;
+                }
+            }
+        }
+        return null;
+    }
+
+    public void LocalUpdate(View v) {
+        if (_btn2.getText().toString().equals("本地更新")) {
             new Thread(new Runnable() {
                 public void run() {
-                    File file = DownloadFile(TXT_URL, TXT_PATH);
-                    if (file != null && file.exists()) {
-                        ShowInfo(_txt1, "版本信息下载成功");
-                        String content = ReadFileByLines(TXT_PATH);
+                    localTxtFile = GetFilePathSite("/storage/", "update_info.txt");
+                    if (localTxtFile == null || !localTxtFile.exists())
+                        localTxtFile = GetFilePathSite("/mnt/media_rw/", "update_info.txt");
+                    if (localTxtFile != null && localTxtFile.exists()) {
+                        ShowInfo(_txt1, "版本信息读取成功");
+                        String content = ReadFileByLines(localTxtFile);
                         int version = Integer.valueOf(content);
                         int shareValue = GetVersion(getApplicationContext());
                         if (version == shareValue) {
@@ -184,33 +236,31 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             ShowInfo(_txt1, "发现新版本，可更新！");
                             SetVersion(getApplicationContext(), version);
-                            _btn1.setText("下载升级包");
+                            BtnInfo(_btn2, "读取升级包");
                         }
                     } else {
-                        ShowInfo(_txt1, "版本信息下载失败");
+                        ShowInfo(_txt1, "版本信息读取失败");
                     }
                 }
             }).start();
-        } else if (_btn1.getText().toString().equals("下载升级包")) {
-            _pb.setVisibility(View.VISIBLE);
+        } else if (_btn2.getText().toString().equals("读取升级包")) {
             new Thread(new Runnable() {
                 public void run() {
-                    File file = DownloadFile(UPDATE_URL, UPDATE_PATH);
-                    if (file != null && file.exists()) {
-                        ShowInfo(_txt1, "升级包下载成功");
-                        _btn1.setText("安装升级包");
-                        _pb.setVisibility(View.INVISIBLE);
+                    localUpdateFile = GetFilePathSite("/storage/", "update.zip");
+                    if (localUpdateFile == null || !localUpdateFile.exists())
+                        localUpdateFile = GetFilePathSite("/mnt/media_rw/", "update.zip");
+                    if (localUpdateFile != null && localUpdateFile.exists()) {
+                        ShowInfo(_txt1, "升级包读取成功");
+                        BtnInfo(_btn2, "安装升级包");
                     } else {
-                        ShowInfo(_txt1, "升级包下载失败");
-                        _pb.setVisibility(View.INVISIBLE);
-                        _pb.setProgress(0);
+                        ShowInfo(_txt1, "升级包读取失败");
                     }
                 }
             }).start();
-        } else if (_btn1.getText().toString().equals("安装升级包")) {
+        } else if (_btn2.getText().toString().equals("安装升级包")) {
             new Thread(new Runnable() {
                 public void run() {
-                    File recoveryFile = new File(UPDATE_PATH);
+                    File recoveryFile = new File(localUpdateFile.getPath());
                     _wakeLock.acquire();
                     //验证更新包的密码签名
                     try {
@@ -229,7 +279,76 @@ public class MainActivity extends AppCompatActivity {
                         _wakeLock.release();
                         e.printStackTrace();
                         ShowInfo(_txt1, "升级包安装失败，请与管理员联系！" + e.getMessage());
+                        BtnInfo(_btn2, "本地更新");
                     }
+                }
+            }).start();
+        }
+    }
+
+    public void IntelUpdate(View v) {
+        ShowWaitWindow();
+        if (_btn1.getText().toString().equals("网络更新")) {
+            new Thread(new Runnable() {
+                public void run() {
+                    File file = DownloadFile(TXT_URL, TXT_PATH);
+                    if (file != null && file.exists()) {
+                        ShowInfo(_txt1, "版本信息下载成功");
+                        String content = ReadFileByLines(TXT_PATH);
+                        int version = Integer.valueOf(content);
+                        int shareValue = GetVersion(getApplicationContext());
+                        if (version == shareValue) {
+                            ShowInfo(_txt1, "已是最新版本！");
+                        } else {
+                            ShowInfo(_txt1, "发现新版本，可更新！");
+                            SetVersion(getApplicationContext(), version);
+                            BtnInfo(_btn1, "下载升级包");
+                        }
+                    } else {
+                        ShowInfo(_txt1, "版本信息下载失败");
+                    }
+                    DismissWaitWindow();
+                }
+            }).start();
+        } else if (_btn1.getText().toString().equals("下载升级包")) {
+            new Thread(new Runnable() {
+                public void run() {
+                    File file = DownloadFile(UPDATE_URL, UPDATE_PATH);
+                    if (file != null && file.exists()) {
+                        ShowInfo(_txt1, "升级包下载成功");
+                        BtnInfo(_btn1, "安装升级包");
+                    } else {
+                        ShowInfo(_txt1, "升级包下载失败");
+                    }
+                    DismissWaitWindow();
+                }
+            }).start();
+        } else if (_btn1.getText().toString().equals("安装升级包")) {
+            new Thread(new Runnable() {
+                public void run() {
+                    File recoveryFile = new File(UPDATE_PATH);
+                    _wakeLock.acquire();
+                    //验证更新包的密码签名
+                    try {
+                        RecoverySystem.verifyPackage(recoveryFile, recoveryVerifyListener, null);
+                    } catch (Exception e) {
+                        _wakeLock.release();
+                        e.printStackTrace();
+                        ShowInfo(_txt1, "升级包验证失败，停止安装！" + e.getMessage());
+                        DismissWaitWindow();
+                        return;
+                    }
+                    ShowInfo(_txt1, "升级包验证成功，开始安装...");
+                    //安装更新包
+                    try {
+                        RecoverySystem.installPackage(getApplicationContext(), recoveryFile);
+                    } catch (Exception e) {
+                        _wakeLock.release();
+                        e.printStackTrace();
+                        ShowInfo(_txt1, "升级包安装失败，请与管理员联系！" + e.getMessage());
+                        BtnInfo(_btn1, "网络更新");
+                    }
+                    DismissWaitWindow();
                 }
             }).start();
         }
@@ -244,11 +363,20 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    public void ShowInfo(final TextView textView, final String str) {
+    private void BtnInfo(final Button button, final String str) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                textView.append(str);
+                button.setText(str);
+            }
+        });
+    }
+
+    private void ShowInfo(final TextView textView, final String str) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                textView.append(str+"\n");
             }
         });
     }
