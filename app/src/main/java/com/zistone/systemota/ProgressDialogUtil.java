@@ -53,8 +53,10 @@ public class ProgressDialogUtil {
     public static void ShowProgressDialog(Context context, boolean touchOutSide, Listener listener, String str) {
         //确保创建Dialog的Activity没有finish才显示
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
-            _alertDialog = new AlertDialog.Builder(context, R.style.CustomProgressDialog).create();
-            _listener = listener;
+            if (_alertDialog == null) {
+                _alertDialog = new AlertDialog.Builder(context, R.style.CustomProgressDialog).create();
+                _listener = listener;
+            }
             View loadView = LayoutInflater.from(context).inflate(R.layout.progress_dialog, null);
             _alertDialog.setView(loadView, 0, 0, 0, 0);
             _alertDialog.setCanceledOnTouchOutside(touchOutSide);
@@ -74,7 +76,9 @@ public class ProgressDialogUtil {
     public static void ShowProgressDialog(Context context, boolean touchOutSide, String str) {
         //确保创建Dialog的Activity没有finish才显示
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
-            _alertDialog = new AlertDialog.Builder(context, R.style.CustomProgressDialog).create();
+            if (_alertDialog == null) {
+                _alertDialog = new AlertDialog.Builder(context, R.style.CustomProgressDialog).create();
+            }
             View loadView = LayoutInflater.from(context).inflate(R.layout.progress_dialog, null);
             TextView textView = loadView.findViewById(R.id.txt_dialog);
             textView.setText(str);
@@ -87,7 +91,6 @@ public class ProgressDialogUtil {
     public static void Dismiss() {
         if (_alertDialog != null) {
             _alertDialog.dismiss();
-            _alertDialog = null;
         }
     }
 
