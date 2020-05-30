@@ -1,21 +1,10 @@
 package com.zistone.systemota;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.annotation.SuppressLint;
-import android.app.DownloadManager;
-import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Looper;
 import android.os.PowerManager;
 import android.os.RecoverySystem;
 import android.os.SystemProperties;
@@ -28,6 +17,9 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.downloader.Error;
 import com.downloader.OnCancelListener;
 import com.downloader.OnDownloadListener;
@@ -39,16 +31,8 @@ import com.downloader.Progress;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -67,9 +51,9 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView _txt1;
     private Button _btn1, _btn2;
-    private PowerManager.WakeLock _wakeLock;
     private File _localTxtFile, _localUpdateFile;
     private ProgressBar _progressBar;
+    private int _localVersion, _serverVersion;
 
     public int GetVersion(Context context) {
         return Share(context).getInt("Version", 111);
@@ -126,7 +110,34 @@ public class MainActivity extends AppCompatActivity {
              */
             @Override
             public void onDownloadComplete() {
-                IntelUpdateStep();
+                if (_btn1.getText().toString().equals("网络更新")) {
+                    File file = new File(SAVED_PATH + TXT_FILE_NAME);
+                    if (file != null && file.exists()) {
+                        ShowInfo(_txt1, "版本信息下载成功");
+                        String content = ReadFileByLines(SAVED_PATH + TXT_FILE_NAME);
+                        _serverVersion = Integer.valueOf(content);
+                        _localVersion = GetVersion(getApplicationContext());
+                        if (_localVersion == _serverVersion) {
+                            ShowInfo(_txt1, "已是最新版本！");
+                        }
+                        //                        else
+                        {
+                            ShowInfo(_txt1, "发现新版本，可更新！");
+                            BtnInfo(_btn1, "下载升级包");
+                        }
+                    } else {
+                        ShowInfo(_txt1, "版本信息下载失败");
+                    }
+                } else if (_btn1.getText().toString().equals("下载升级包")) {
+                    File file = new File(SAVED_PATH + UPDATE_FILE_NAME);
+                    if (file != null && file.exists()) {
+                        ShowInfo(_txt1, "升级包下载成功");
+                        BtnInfo(_btn1, "安装升级包");
+                    } else {
+                        ShowInfo(_txt1, "升级包下载失败");
+                    }
+                } else if (_btn1.getText().toString().equals("安装升级包")) {
+                }
                 _progressBar.setVisibility(View.INVISIBLE);
                 MyAlertDialogUtil.Dismiss();
                 MyAlertDialogUtil.ShowMessage(MainActivity.this, "提示", "下载完毕");
@@ -214,8 +225,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        PowerManager pm = (PowerManager) this.getSystemService(Context.POWER_SERVICE);
-        _wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "OTA Wakelock");
         View view = this.getCurrentFocus();
         if (view != null) {
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -264,13 +273,12 @@ public class MainActivity extends AppCompatActivity {
                     if (_localTxtFile != null && _localTxtFile.exists()) {
                         ShowInfo(_txt1, "版本信息读取成功");
                         String content = ReadFileByLines(_localTxtFile);
-                        int version = Integer.valueOf(content);
-                        int shareValue = GetVersion(getApplicationContext());
-                        if (version == shareValue) {
+                        _serverVersion = Integer.valueOf(content);
+                        _localVersion = GetVersion(getApplicationContext());
+                        if (_localVersion == _serverVersion) {
                             ShowInfo(_txt1, "已是最新版本！");
                         } else {
                             ShowInfo(_txt1, "发现新版本，可更新！");
-                            SetVersion(getApplicationContext(), version);
                             BtnInfo(_btn2, "读取升级包");
                         }
                     } else {
@@ -296,12 +304,10 @@ public class MainActivity extends AppCompatActivity {
             new Thread(new Runnable() {
                 public void run() {
                     File recoveryFile = new File(_localUpdateFile.getPath());
-                    _wakeLock.acquire();
                     //验证更新包的密码签名
                     try {
                         RecoverySystem.verifyPackage(recoveryFile, recoveryVerifyListener, null);
                     } catch (Exception e) {
-                        _wakeLock.release();
                         e.printStackTrace();
                         ShowInfo(_txt1, "升级包验证失败，停止安装！" + e.getMessage());
                         return;
@@ -309,9 +315,10 @@ public class MainActivity extends AppCompatActivity {
                     ShowInfo(_txt1, "升级包验证成功，开始安装...");
                     //安装更新包
                     try {
+                        SetVersion(getApplicationContext(), _serverVersion);
                         RecoverySystem.installPackage(getApplicationContext(), recoveryFile);
                     } catch (Exception e) {
-                        _wakeLock.release();
+                        SetVersion(getApplicationContext(), _localVersion);
                         e.printStackTrace();
                         ShowInfo(_txt1, "升级包安装失败，请与管理员联系！" + e.getMessage());
                         BtnInfo(_btn2, "本地更新");
@@ -321,40 +328,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void IntelUpdateStep() {
+    public void ClickIntelUpdate(View v) {
         if (_btn1.getText().toString().equals("网络更新")) {
-            File file = new File(SAVED_PATH + TXT_FILE_NAME);
-            if (file != null && file.exists()) {
-                ShowInfo(_txt1, "版本信息下载成功");
-                String content = ReadFileByLines(SAVED_PATH + TXT_FILE_NAME);
-                int version = Integer.valueOf(content);
-                int shareValue = GetVersion(getApplicationContext());
-                if (version == shareValue) {
-                    ShowInfo(_txt1, "已是最新版本！");
-                } else {
-                    ShowInfo(_txt1, "发现新版本，可更新！");
-                    SetVersion(getApplicationContext(), version);
-                    BtnInfo(_btn1, "下载升级包");
+            new Thread(new Runnable() {
+                public void run() {
+                    DownloadFile(TXT_URL, SAVED_PATH, TXT_FILE_NAME);
                 }
-            } else {
-                ShowInfo(_txt1, "版本信息下载失败");
-            }
+            }).start();
         } else if (_btn1.getText().toString().equals("下载升级包")) {
-            File file = new File(SAVED_PATH + UPDATE_FILE_NAME);
-            if (file != null && file.exists()) {
-                ShowInfo(_txt1, "升级包下载成功");
-                BtnInfo(_btn1, "安装升级包");
-            } else {
-                ShowInfo(_txt1, "升级包下载失败");
-            }
+            new Thread(new Runnable() {
+                public void run() {
+                    DownloadFile(UPDATE_URL, SAVED_PATH, UPDATE_FILE_NAME);
+                }
+            }).start();
         } else if (_btn1.getText().toString().equals("安装升级包")) {
             File recoveryFile = new File(SAVED_PATH + UPDATE_FILE_NAME);
-            _wakeLock.acquire();
             //验证更新包的密码签名
             try {
                 RecoverySystem.verifyPackage(recoveryFile, recoveryVerifyListener, null);
             } catch (Exception e) {
-                _wakeLock.release();
                 e.printStackTrace();
                 ShowInfo(_txt1, "升级包验证失败，停止安装！" + e.getMessage());
                 return;
@@ -362,22 +354,15 @@ public class MainActivity extends AppCompatActivity {
             ShowInfo(_txt1, "升级包验证成功，开始安装...");
             //安装更新包
             try {
+                SetVersion(getApplicationContext(), _serverVersion);
                 RecoverySystem.installPackage(getApplicationContext(), recoveryFile);
             } catch (Exception e) {
-                _wakeLock.release();
+                SetVersion(getApplicationContext(), _localVersion);
                 e.printStackTrace();
                 ShowInfo(_txt1, "升级包安装失败，请与管理员联系！" + e.getMessage());
                 BtnInfo(_btn1, "网络更新");
             }
         }
-    }
-
-    public void ClickIntelUpdate(View v) {
-        new Thread(new Runnable() {
-            public void run() {
-                DownloadFile(TXT_URL, SAVED_PATH, TXT_FILE_NAME);
-            }
-        }).start();
     }
 
     RecoverySystem.ProgressListener recoveryVerifyListener = new RecoverySystem.ProgressListener() {
