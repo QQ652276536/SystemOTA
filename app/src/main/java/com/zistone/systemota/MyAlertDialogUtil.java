@@ -1,15 +1,18 @@
 package com.zistone.systemota;
 
 import android.app.Activity;
+
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 
-public class ProgressDialogUtil {
+public class MyAlertDialogUtil {
 
     private static AlertDialog _alertDialog;
     private static Listener _listener;
@@ -22,6 +25,12 @@ public class ProgressDialogUtil {
         void OnCancel();
     }
 
+    /**
+     * 确认窗体
+     * @param context
+     * @param title
+     * @param content
+     */
     public static void ShowConfirm(Context context, String title, String content) {
         //确保创建Dialog的Activity没有finish才显示
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
@@ -38,7 +47,13 @@ public class ProgressDialogUtil {
         }
     }
 
-    public static void ShowWarning(Context context, String title, String content) {
+    /**
+     * 提示窗体
+     * @param context
+     * @param title
+     * @param content
+     */
+    public static void ShowMessage(Context context, String title, String content) {
         //确保创建Dialog的Activity没有finish才显示
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
@@ -50,7 +65,14 @@ public class ProgressDialogUtil {
         }
     }
 
-    public static void ShowProgressDialog(Context context, boolean touchOutSide, Listener listener, String str) {
+    /**
+     * 等待窗体
+     * @param context
+     * @param touchOutSide
+     * @param listener
+     * @param str
+     */
+    public static void ShowWait(Context context, boolean touchOutSide, Listener listener, String str) {
         //确保创建Dialog的Activity没有finish才显示
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
             if (_alertDialog == null) {
@@ -73,7 +95,13 @@ public class ProgressDialogUtil {
         }
     }
 
-    public static void ShowProgressDialog(Context context, boolean touchOutSide, String str) {
+    /**
+     * 等待窗体
+     * @param context
+     * @param touchOutSide
+     * @param str
+     */
+    public static void ShowWait(Context context, boolean touchOutSide, String str) {
         //确保创建Dialog的Activity没有finish才显示
         if (context instanceof Activity && !((Activity) context).isFinishing()) {
             if (_alertDialog == null) {
