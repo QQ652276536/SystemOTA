@@ -59,16 +59,17 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final String UPDATE_URL = "http://129.204.165.206:8080/GPRS_Web/Download/OTATest";
     private static final String TXT_URL = "http://129.204.165.206:8080/GPRS_Web/Download/TxtTest";
-    //    private static final String UPDATE_URL = "http://192.168.43.164:8080/GPRS_Web/Download/OTATest";
-    //    private static final String TXT_URL = "http://192.168.43.164:8080/GPRS_Web/Download/TxtTest";
-    private static final String SAVED_PATH = "/data/";
+    //    private static final String UPDATE_URL = "http://192.168.10.193:8080/GPRS_Web/Download/OTATest";
+    //    private static final String TXT_URL = "http://192.168.10.193:8080/GPRS_Web/Download/TxtTest";
+    private static final String SAVED_PATH = "/sdcard/Download/";
     private static final String TXT_FILE_NAME = "update_info.txt";
     private static final String UPDATE_FILE_NAME = "update.zip";
 
     private TextView _txt1;
     private Button _btn1, _btn2;
     private PowerManager.WakeLock _wakeLock;
-    private File localTxtFile, localUpdateFile;
+    private File _localTxtFile, _localUpdateFile;
+    private ProgressBar _progressBar;
 
     public int GetVersion(Context context) {
         return Share(context).getInt("Version", 111);
@@ -80,14 +81,15 @@ public class MainActivity extends AppCompatActivity {
         return editor.commit();
     }
 
-    public File DownloadFile2(String urlStr, String savedLocalPath, String savedFileName) {
-        int downloadId = PRDownloader.download(urlStr, savedLocalPath, savedFileName).build().setOnStartOrResumeListener(new OnStartOrResumeListener() {
+    public File DownloadFile(String urlStr, String savedLocalPath, String savedFileName) {
+        PRDownloader.download(urlStr, savedLocalPath, savedFileName).build().setOnStartOrResumeListener(new OnStartOrResumeListener() {
             /**
              * 开始/恢复下载
              */
             @Override
             public void onStartOrResume() {
-                ProgressDialogUtil.ShowProgressDialog(MainActivity.this, false, "已下载0%");
+                _progressBar.setProgress(0, true);
+                _progressBar.setVisibility(View.VISIBLE);
             }
         }).setOnPauseListener(new OnPauseListener() {
             /**
@@ -95,7 +97,8 @@ public class MainActivity extends AppCompatActivity {
              */
             @Override
             public void onPause() {
-                ProgressDialogUtil.Dismiss();
+                _progressBar.setVisibility(View.INVISIBLE);
+                MyAlertDialogUtil.Dismiss();
             }
         }).setOnCancelListener(new OnCancelListener() {
             /**
@@ -103,7 +106,8 @@ public class MainActivity extends AppCompatActivity {
              */
             @Override
             public void onCancel() {
-                ProgressDialogUtil.Dismiss();
+                _progressBar.setVisibility(View.INVISIBLE);
+                MyAlertDialogUtil.Dismiss();
             }
         }).setOnProgressListener(new OnProgressListener() {
             /**
@@ -112,7 +116,9 @@ public class MainActivity extends AppCompatActivity {
              */
             @Override
             public void onProgress(Progress progress) {
-                ProgressDialogUtil.ShowProgressDialog(MainActivity.this, false, "已下载" + progress.currentBytes / progress.totalBytes * 100 + "%");
+                double value = progress.currentBytes * 100 / progress.totalBytes;
+                _progressBar.setProgress((int) value, true);
+                Log.i(TAG, "当前字节数：" + progress.currentBytes + "，总字节数：" + progress.totalBytes + "，下载进度：" + value);
             }
         }).start(new OnDownloadListener() {
             /**
@@ -120,8 +126,10 @@ public class MainActivity extends AppCompatActivity {
              */
             @Override
             public void onDownloadComplete() {
-                ProgressDialogUtil.Dismiss();
-                ProgressDialogUtil.ShowWarning(MainActivity.this, "提示", "下载完毕");
+                IntelUpdateStep();
+                _progressBar.setVisibility(View.INVISIBLE);
+                MyAlertDialogUtil.Dismiss();
+                MyAlertDialogUtil.ShowMessage(MainActivity.this, "提示", "下载完毕");
             }
 
             /**
@@ -130,8 +138,9 @@ public class MainActivity extends AppCompatActivity {
              */
             @Override
             public void onError(Error error) {
-                ProgressDialogUtil.Dismiss();
-                ProgressDialogUtil.ShowWarning(MainActivity.this, "警告", "下载过程中发生错误");
+                _progressBar.setVisibility(View.INVISIBLE);
+                MyAlertDialogUtil.Dismiss();
+                MyAlertDialogUtil.ShowMessage(MainActivity.this, "错误", "下载过程中发生错误");
             }
         });
         return null;
@@ -216,6 +225,9 @@ public class MainActivity extends AppCompatActivity {
         _txt1.setMovementMethod(ScrollingMovementMethod.getInstance());
         _btn1 = findViewById(R.id.btn1);
         _btn2 = findViewById(R.id.btn2);
+        _progressBar = findViewById(R.id.progressBar);
+        _progressBar.setMin(0);
+        _progressBar.setMax(100);
         String sta = SystemProperties.get("ro.crypto.state");
         Log.d(TAG, "ro.crypto.state" + sta);
         if ("encrypted".equals(sta)) {
@@ -228,28 +240,30 @@ public class MainActivity extends AppCompatActivity {
     private File GetFilePathSite(String filePath, String fileName) {
         File file = new File(filePath);
         File[] fileList = file.listFiles();
-        for (int i = 0; i < fileList.length; i++) {
-            if (fileList[i].isDirectory()) {
-                String result = fileList[i].getPath();
-                File tempFile = new File(result + "/" + fileName);
-                if (tempFile.exists()) {
-                    return tempFile;
+        if (fileList != null) {
+            for (int i = 0; i < fileList.length; i++) {
+                if (fileList[i].isDirectory()) {
+                    String result = fileList[i].getPath();
+                    File tempFile = new File(result + "/" + fileName);
+                    if (tempFile.exists()) {
+                        return tempFile;
+                    }
                 }
             }
         }
         return null;
     }
 
-    public void LocalUpdate(View v) {
+    public void ClickLocalUpdate(View v) {
         if (_btn2.getText().toString().equals("本地更新")) {
             new Thread(new Runnable() {
                 public void run() {
-                    localTxtFile = GetFilePathSite("/storage/", "update_info.txt");
-                    if (localTxtFile == null || !localTxtFile.exists())
-                        localTxtFile = GetFilePathSite("/mnt/media_rw/", "update_info.txt");
-                    if (localTxtFile != null && localTxtFile.exists()) {
+                    _localTxtFile = GetFilePathSite("/storage/", "update_info.txt");
+                    if (_localTxtFile == null || !_localTxtFile.exists())
+                        _localTxtFile = GetFilePathSite("/mnt/media_rw/", "update_info.txt");
+                    if (_localTxtFile != null && _localTxtFile.exists()) {
                         ShowInfo(_txt1, "版本信息读取成功");
-                        String content = ReadFileByLines(localTxtFile);
+                        String content = ReadFileByLines(_localTxtFile);
                         int version = Integer.valueOf(content);
                         int shareValue = GetVersion(getApplicationContext());
                         if (version == shareValue) {
@@ -267,10 +281,10 @@ public class MainActivity extends AppCompatActivity {
         } else if (_btn2.getText().toString().equals("读取升级包")) {
             new Thread(new Runnable() {
                 public void run() {
-                    localUpdateFile = GetFilePathSite("/storage/", "update.zip");
-                    if (localUpdateFile == null || !localUpdateFile.exists())
-                        localUpdateFile = GetFilePathSite("/mnt/media_rw/", "update.zip");
-                    if (localUpdateFile != null && localUpdateFile.exists()) {
+                    _localUpdateFile = GetFilePathSite("/storage/", "update.zip");
+                    if (_localUpdateFile == null || !_localUpdateFile.exists())
+                        _localUpdateFile = GetFilePathSite("/mnt/media_rw/", "update.zip");
+                    if (_localUpdateFile != null && _localUpdateFile.exists()) {
                         ShowInfo(_txt1, "升级包读取成功");
                         BtnInfo(_btn2, "安装升级包");
                     } else {
@@ -281,7 +295,7 @@ public class MainActivity extends AppCompatActivity {
         } else if (_btn2.getText().toString().equals("安装升级包")) {
             new Thread(new Runnable() {
                 public void run() {
-                    File recoveryFile = new File(localUpdateFile.getPath());
+                    File recoveryFile = new File(_localUpdateFile.getPath());
                     _wakeLock.acquire();
                     //验证更新包的密码签名
                     try {
@@ -307,69 +321,63 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void IntelUpdate(View v) {
+    public void IntelUpdateStep() {
         if (_btn1.getText().toString().equals("网络更新")) {
-            new Thread(new Runnable() {
-                public void run() {
-                    DownloadFile2(TXT_URL, SAVED_PATH, TXT_FILE_NAME);
-                    File file = new File(SAVED_PATH + TXT_FILE_NAME);
-                    if (file != null && file.exists()) {
-                        ShowInfo(_txt1, "版本信息下载成功");
-                        String content = ReadFileByLines(SAVED_PATH + TXT_FILE_NAME);
-                        int version = Integer.valueOf(content);
-                        int shareValue = GetVersion(getApplicationContext());
-                        if (version == shareValue) {
-                            ShowInfo(_txt1, "已是最新版本！");
-                        } else {
-                            ShowInfo(_txt1, "发现新版本，可更新！");
-                            SetVersion(getApplicationContext(), version);
-                            BtnInfo(_btn1, "下载升级包");
-                        }
-                    } else {
-                        ShowInfo(_txt1, "版本信息下载失败");
-                    }
+            File file = new File(SAVED_PATH + TXT_FILE_NAME);
+            if (file != null && file.exists()) {
+                ShowInfo(_txt1, "版本信息下载成功");
+                String content = ReadFileByLines(SAVED_PATH + TXT_FILE_NAME);
+                int version = Integer.valueOf(content);
+                int shareValue = GetVersion(getApplicationContext());
+                if (version == shareValue) {
+                    ShowInfo(_txt1, "已是最新版本！");
+                } else {
+                    ShowInfo(_txt1, "发现新版本，可更新！");
+                    SetVersion(getApplicationContext(), version);
+                    BtnInfo(_btn1, "下载升级包");
                 }
-            }).start();
+            } else {
+                ShowInfo(_txt1, "版本信息下载失败");
+            }
         } else if (_btn1.getText().toString().equals("下载升级包")) {
-            new Thread(new Runnable() {
-                public void run() {
-                    DownloadFile2(UPDATE_URL, SAVED_PATH, UPDATE_FILE_NAME);
-                    File file = new File(SAVED_PATH + UPDATE_FILE_NAME);
-                    if (file != null && file.exists()) {
-                        ShowInfo(_txt1, "升级包下载成功");
-                        BtnInfo(_btn1, "安装升级包");
-                    } else {
-                        ShowInfo(_txt1, "升级包下载失败");
-                    }
-                }
-            }).start();
+            File file = new File(SAVED_PATH + UPDATE_FILE_NAME);
+            if (file != null && file.exists()) {
+                ShowInfo(_txt1, "升级包下载成功");
+                BtnInfo(_btn1, "安装升级包");
+            } else {
+                ShowInfo(_txt1, "升级包下载失败");
+            }
         } else if (_btn1.getText().toString().equals("安装升级包")) {
-            new Thread(new Runnable() {
-                public void run() {
-                    File recoveryFile = new File(SAVED_PATH + UPDATE_FILE_NAME);
-                    _wakeLock.acquire();
-                    //验证更新包的密码签名
-                    try {
-                        RecoverySystem.verifyPackage(recoveryFile, recoveryVerifyListener, null);
-                    } catch (Exception e) {
-                        _wakeLock.release();
-                        e.printStackTrace();
-                        ShowInfo(_txt1, "升级包验证失败，停止安装！" + e.getMessage());
-                        return;
-                    }
-                    ShowInfo(_txt1, "升级包验证成功，开始安装...");
-                    //安装更新包
-                    try {
-                        RecoverySystem.installPackage(getApplicationContext(), recoveryFile);
-                    } catch (Exception e) {
-                        _wakeLock.release();
-                        e.printStackTrace();
-                        ShowInfo(_txt1, "升级包安装失败，请与管理员联系！" + e.getMessage());
-                        BtnInfo(_btn1, "网络更新");
-                    }
-                }
-            }).start();
+            File recoveryFile = new File(SAVED_PATH + UPDATE_FILE_NAME);
+            _wakeLock.acquire();
+            //验证更新包的密码签名
+            try {
+                RecoverySystem.verifyPackage(recoveryFile, recoveryVerifyListener, null);
+            } catch (Exception e) {
+                _wakeLock.release();
+                e.printStackTrace();
+                ShowInfo(_txt1, "升级包验证失败，停止安装！" + e.getMessage());
+                return;
+            }
+            ShowInfo(_txt1, "升级包验证成功，开始安装...");
+            //安装更新包
+            try {
+                RecoverySystem.installPackage(getApplicationContext(), recoveryFile);
+            } catch (Exception e) {
+                _wakeLock.release();
+                e.printStackTrace();
+                ShowInfo(_txt1, "升级包安装失败，请与管理员联系！" + e.getMessage());
+                BtnInfo(_btn1, "网络更新");
+            }
         }
+    }
+
+    public void ClickIntelUpdate(View v) {
+        new Thread(new Runnable() {
+            public void run() {
+                DownloadFile(TXT_URL, SAVED_PATH, TXT_FILE_NAME);
+            }
+        }).start();
     }
 
     RecoverySystem.ProgressListener recoveryVerifyListener = new RecoverySystem.ProgressListener() {
@@ -395,6 +403,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 textView.append(str + "\n");
+                int scrollAmount = textView.getLayout().getLineTop(textView.getLineCount()) - textView.getHeight();
+                if (scrollAmount > 0)
+                    textView.scrollTo(0, scrollAmount);
             }
         });
     }

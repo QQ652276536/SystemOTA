@@ -32,7 +32,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:onClick="IntelUpdate"
+            android:onClick="ClickIntelUpdate"
             android:text="网络更新" />
 
         <TextView
@@ -45,7 +45,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:onClick="LocalUpdate"
+            android:onClick="ClickLocalUpdate"
             android:text="本地更新" />
     </LinearLayout>
 
