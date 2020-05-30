@@ -45,7 +45,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TXT_URL = "http://129.204.165.206:8080/GPRS_Web/Download/TxtTest";
     //    private static final String UPDATE_URL = "http://192.168.10.193:8080/GPRS_Web/Download/OTATest";
     //    private static final String TXT_URL = "http://192.168.10.193:8080/GPRS_Web/Download/TxtTest";
-    private static final String SAVED_PATH = "/sdcard/Download/";
+    private static final String SAVED_PATH = "/data/";
+    //    private static final String SAVED_PATH = "/sdcard/Download/";
     private static final String TXT_FILE_NAME = "update_info.txt";
     private static final String UPDATE_FILE_NAME = "update.zip";
 
