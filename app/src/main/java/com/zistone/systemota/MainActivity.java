@@ -43,14 +43,14 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final String UPDATE_URL = "http://129.204.165.206:8080/GPRS_Web/Download/OTATest";
     private static final String TXT_URL = "http://129.204.165.206:8080/GPRS_Web/Download/TxtTest";
+    private static final String SAVED_PATH = "/data/";
     //    private static final String UPDATE_URL = "http://192.168.10.193:8080/GPRS_Web/Download/OTATest";
     //    private static final String TXT_URL = "http://192.168.10.193:8080/GPRS_Web/Download/TxtTest";
-    private static final String SAVED_PATH = "/data/";
     //    private static final String SAVED_PATH = "/sdcard/Download/";
     private static final String TXT_FILE_NAME = "update_info.txt";
     private static final String UPDATE_FILE_NAME = "update.zip";
 
-    private TextView _txt1;
+    private TextView _txt1, _txt2;
     private Button _btn1, _btn2;
     private File _localTxtFile, _localUpdateFile;
     private ProgressBar _progressBar;
@@ -75,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
             public void onStartOrResume() {
                 _progressBar.setProgress(0, true);
                 _progressBar.setVisibility(View.VISIBLE);
+                _txt2.setText("已下载0%");
+                _txt2.setVisibility(View.VISIBLE);
             }
         }).setOnPauseListener(new OnPauseListener() {
             /**
@@ -83,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPause() {
                 _progressBar.setVisibility(View.INVISIBLE);
+                _txt2.setVisibility(View.INVISIBLE);
                 MyAlertDialogUtil.Dismiss();
             }
         }).setOnCancelListener(new OnCancelListener() {
@@ -92,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCancel() {
                 _progressBar.setVisibility(View.INVISIBLE);
+                _txt2.setVisibility(View.INVISIBLE);
                 MyAlertDialogUtil.Dismiss();
             }
         }).setOnProgressListener(new OnProgressListener() {
@@ -103,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
             public void onProgress(Progress progress) {
                 double value = progress.currentBytes * 100 / progress.totalBytes;
                 _progressBar.setProgress((int) value, true);
+                _txt2.setText("已下载" + (int) value + "%");
                 Log.i(TAG, "当前字节数：" + progress.currentBytes + "，总字节数：" + progress.totalBytes + "，下载进度：" + value);
             }
         }).start(new OnDownloadListener() {
@@ -120,9 +125,7 @@ public class MainActivity extends AppCompatActivity {
                         _localVersion = GetVersion(getApplicationContext());
                         if (_localVersion == _serverVersion) {
                             ShowInfo(_txt1, "已是最新版本！");
-                        }
-                        //                        else
-                        {
+                        } else {
                             ShowInfo(_txt1, "发现新版本，可更新！");
                             BtnInfo(_btn1, "下载升级包");
                         }
@@ -140,8 +143,8 @@ public class MainActivity extends AppCompatActivity {
                 } else if (_btn1.getText().toString().equals("安装升级包")) {
                 }
                 _progressBar.setVisibility(View.INVISIBLE);
+                _txt2.setVisibility(View.INVISIBLE);
                 MyAlertDialogUtil.Dismiss();
-                MyAlertDialogUtil.ShowMessage(MainActivity.this, "提示", "下载完毕");
             }
 
             /**
@@ -151,8 +154,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onError(Error error) {
                 _progressBar.setVisibility(View.INVISIBLE);
+                _txt2.setVisibility(View.INVISIBLE);
                 MyAlertDialogUtil.Dismiss();
-                MyAlertDialogUtil.ShowMessage(MainActivity.this, "错误", "下载过程中发生错误");
             }
         });
         return null;
@@ -163,7 +166,7 @@ public class MainActivity extends AppCompatActivity {
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new FileReader(file));
-            String tempString = null;
+            String tempString;
             while ((tempString = reader.readLine()) != null) {
                 result += tempString;
             }
@@ -188,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new FileReader(file));
-            String tempString = null;
+            String tempString;
             while ((tempString = reader.readLine()) != null) {
                 result += tempString;
             }
@@ -233,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
         }
         _txt1 = findViewById(R.id.txt1);
         _txt1.setMovementMethod(ScrollingMovementMethod.getInstance());
+        _txt2 = findViewById(R.id.txt2);
         _btn1 = findViewById(R.id.btn1);
         _btn2 = findViewById(R.id.btn2);
         _progressBar = findViewById(R.id.progressBar);
