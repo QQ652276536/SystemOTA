@@ -54,7 +54,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:onClick="ClickLocalUpdate"
-            android:text="本地更新" />
+            android:text="U盘更新" />
     </LinearLayout>
 
 

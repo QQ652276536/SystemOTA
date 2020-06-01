@@ -375,7 +375,6 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "升级包验证：" + progress + "%");
             final int progress1 = progress;
             ShowInfo(_txt1, "升级包验证：" + progress1 + "%");
-
         }
     };
 
