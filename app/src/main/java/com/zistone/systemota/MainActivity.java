@@ -31,8 +31,13 @@ import com.downloader.Progress;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.channels.FileChannel;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -269,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void ClickLocalUpdate(View v) {
-        if (_btn2.getText().toString().equals("本地更新")) {
+        if (_btn2.getText().toString().equals("U盘更新")) {
             new Thread(new Runnable() {
                 public void run() {
                     _localTxtFile = GetFilePathSite("/storage/", "update_info.txt");
@@ -298,6 +303,26 @@ public class MainActivity extends AppCompatActivity {
                     if (_localUpdateFile == null || !_localUpdateFile.exists())
                         _localUpdateFile = GetFilePathSite("/mnt/media_rw/", "update.zip");
                     if (_localUpdateFile != null && _localUpdateFile.exists()) {
+                        _btn1.setEnabled(false);
+                        ShowInfo(_txt1, "正在读取升级包...");
+                        //将U盘里的升级包拷贝至本地
+                        FileChannel inputChannel = null;
+                        FileChannel outputChannel = null;
+                        try {
+                            inputChannel = new FileInputStream(_localUpdateFile.getPath()).getChannel();
+                            outputChannel = new FileOutputStream(SAVED_PATH + UPDATE_FILE_NAME).getChannel();
+                            outputChannel.transferFrom(inputChannel, 0, inputChannel.size());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } finally {
+                            try {
+                                inputChannel.close();
+                                outputChannel.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        _btn1.setEnabled(true);
                         ShowInfo(_txt1, "升级包读取成功");
                         BtnInfo(_btn2, "安装升级包");
                     } else {
