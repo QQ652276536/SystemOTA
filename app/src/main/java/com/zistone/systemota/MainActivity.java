@@ -303,7 +303,12 @@ public class MainActivity extends AppCompatActivity {
                     if (_localUpdateFile == null || !_localUpdateFile.exists())
                         _localUpdateFile = GetFilePathSite("/mnt/media_rw/", "update.zip");
                     if (_localUpdateFile != null && _localUpdateFile.exists()) {
-                        _btn1.setEnabled(false);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                _btn2.setEnabled(false);
+                            }
+                        });
                         ShowInfo(_txt1, "正在读取升级包...");
                         //将U盘里的升级包拷贝至本地
                         FileChannel inputChannel = null;
@@ -322,7 +327,12 @@ public class MainActivity extends AppCompatActivity {
                                 e.printStackTrace();
                             }
                         }
-                        _btn1.setEnabled(true);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                _btn2.setEnabled(true);
+                            }
+                        });
                         ShowInfo(_txt1, "升级包读取成功");
                         BtnInfo(_btn2, "安装升级包");
                     } else {
@@ -333,7 +343,7 @@ public class MainActivity extends AppCompatActivity {
         } else if (_btn2.getText().toString().equals("安装升级包")) {
             new Thread(new Runnable() {
                 public void run() {
-                    File recoveryFile = new File(_localUpdateFile.getPath());
+                    File recoveryFile = new File(SAVED_PATH + UPDATE_FILE_NAME);
                     //验证更新包的密码签名
                     try {
                         RecoverySystem.verifyPackage(recoveryFile, recoveryVerifyListener, null);
