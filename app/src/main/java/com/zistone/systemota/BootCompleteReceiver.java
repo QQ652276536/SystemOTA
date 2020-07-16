@@ -16,7 +16,6 @@ public class BootCompleteReceiver extends BroadcastReceiver {
             Log.d(TAG, "已收到开机广播，程序启动......");
             Intent intentMainActivity = new Intent(context, MainActivity.class);
             intentMainActivity.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intentMainActivity.putExtra("ISRESTART", true);
             context.startActivity(intentMainActivity);
         }
     }

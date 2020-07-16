@@ -91,7 +91,6 @@ public class MainActivity extends AppCompatActivity {
             public void onPause() {
                 _progressBar.setVisibility(View.INVISIBLE);
                 _txt2.setVisibility(View.INVISIBLE);
-                MyAlertDialogUtil.Dismiss();
             }
         }).setOnCancelListener(new OnCancelListener() {
             /**
@@ -101,7 +100,6 @@ public class MainActivity extends AppCompatActivity {
             public void onCancel() {
                 _progressBar.setVisibility(View.INVISIBLE);
                 _txt2.setVisibility(View.INVISIBLE);
-                MyAlertDialogUtil.Dismiss();
             }
         }).setOnProgressListener(new OnProgressListener() {
             /**
@@ -149,7 +147,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 _progressBar.setVisibility(View.INVISIBLE);
                 _txt2.setVisibility(View.INVISIBLE);
-                MyAlertDialogUtil.Dismiss();
             }
 
             /**
@@ -160,7 +157,6 @@ public class MainActivity extends AppCompatActivity {
             public void onError(Error error) {
                 _progressBar.setVisibility(View.INVISIBLE);
                 _txt2.setVisibility(View.INVISIBLE);
-                MyAlertDialogUtil.Dismiss();
             }
         });
         return null;
